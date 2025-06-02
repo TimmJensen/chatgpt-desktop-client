@@ -33,10 +33,22 @@ A simple Electron-based desktop wrapper for ChatGPT that works on Intel Macs and
    ```bash
    npm install
    ```
+   ```bash
+   yarn install
+   ```
+   ```bash
+   bun install
+   ```
 
 4. **Run the application:**
    ```bash
    npm start
+   ```
+   ```bash
+   yarn start
+   ```
+   ```bash
+   bun start
    ```
 
 ## Building for Distribution
