@@ -1,0 +1,35 @@
+{
+  "name": "chatgpt-desktop",
+  "version": "1.0.0",
+  "description": "Desktop wrapper for ChatGPT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dist": "electron-builder --publish=never"
+  },
+  "keywords": ["chatgpt", "electron", "desktop"],
+  "author": "Timm Jensen",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.yourname.chatgpt-desktop",
+    "productName": "ChatGPT Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
