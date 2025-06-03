@@ -14,7 +14,7 @@ A simple Electron-based desktop wrapper for ChatGPT that works on Intel Macs and
 ## Prerequisites
 
 - Node.js (version 16 or higher)
-- npm or yarn
+- npm, yarn or bun
 
 ## Installation & Setup
 
