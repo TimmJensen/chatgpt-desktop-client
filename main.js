@@ -1,32 +1,65 @@
 const { app, BrowserWindow, Menu, shell, dialog, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 let mainWindow;
+
+// Check if icon file exists - do this at the module level so it's available everywhere
+const iconPath = path.join(__dirname, 'assets', 'icon.icns');
+const iconExists = fs.existsSync(iconPath);
+
+if (!iconExists) {
+    console.warn('Icon file not found at path:', iconPath);
+}
 
 function createWindow() {
     // Create a persistent session for maintaining login state
     const ses = session.fromPartition('persist:chatgpt');
 
-    // Set a proper user agent to appear as a regular browser
-    ses.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    // Set more browser-like settings to avoid detection
+    const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+
+    ses.setUserAgent(userAgent);
+
+    // Handle CORS more securely - only for OpenAI domains
+    ses.webRequest.onHeadersReceived((details, callback) => {
+        const url = new URL(details.url);
+        // Only modify headers for OpenAI domains
+        if (url.hostname.includes('openai.com') || url.hostname.includes('chat.openai.com')) {
+            callback({
+                responseHeaders: {
+                    ...details.responseHeaders,
+                    'Access-Control-Allow-Origin': ['https://chat.openai.com'],
+                    'Access-Control-Allow-Methods': ['GET, POST, OPTIONS'],
+                    'Access-Control-Allow-Headers': ['Content-Type, Authorization']
+                }
+            });
+        } else {
+            callback({ responseHeaders: details.responseHeaders });
+        }
+    });
 
     // Set additional headers to appear more browser-like
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
-        details.requestHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8';
+        details.requestHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7';
         details.requestHeaders['Accept-Language'] = 'en-US,en;q=0.9';
         details.requestHeaders['Accept-Encoding'] = 'gzip, deflate, br';
-        details.requestHeaders['Cache-Control'] = 'no-cache';
+        details.requestHeaders['Cache-Control'] = 'max-age=0';
         details.requestHeaders['Pragma'] = 'no-cache';
         details.requestHeaders['Sec-Fetch-Dest'] = 'document';
         details.requestHeaders['Sec-Fetch-Mode'] = 'navigate';
         details.requestHeaders['Sec-Fetch-Site'] = 'none';
         details.requestHeaders['Sec-Fetch-User'] = '?1';
         details.requestHeaders['Upgrade-Insecure-Requests'] = '1';
+        details.requestHeaders['sec-ch-ua'] = '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"';
+        details.requestHeaders['sec-ch-ua-mobile'] = '?0';
+        details.requestHeaders['sec-ch-ua-platform'] = '"macOS"';
 
         callback({ requestHeaders: details.requestHeaders });
     });
 
-    mainWindow = new BrowserWindow({
+    // Create window options
+    const windowOptions = {
         width: 1200,
         height: 800,
         minWidth: 800,
@@ -35,19 +68,47 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             enableRemoteModule: false,
-            webSecurity: true,
+            webSecurity: true, // Enable web security for better protection
             session: ses, // Use persistent session
-            allowRunningInsecureContent: false,
+            allowRunningInsecureContent: false, // Disable running insecure content for security
             experimentalFeatures: false
         },
-        icon: path.join(__dirname, 'assets', 'icon.png'), // Optional: add your icon
         titleBarStyle: 'default',
         show: false // Don't show until ready
+    };
+
+    // Only set the icon if the file exists
+    if (iconExists) {
+        windowOptions.icon = iconPath;
+    }
+
+    mainWindow = new BrowserWindow(windowOptions);
+
+    // Add debugging
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        console.log(`Failed to load: Code ${errorCode} - ${errorDescription}`);
+
+        // Wait a moment and try again with a different approach
+        setTimeout(() => {
+            if (!mainWindow.isDestroyed()) {
+                console.log('Retrying load with different parameters...');
+                mainWindow.loadURL('https://chat.openai.com/?__cf_chl_rt_tk=disabled', {
+                    userAgent: userAgent,
+                    extraHeaders: 'pragma: no-cache\n'
+                });
+            }
+        }, 3000);
+    });
+
+    // Add console log monitoring
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        console.log(`Console [${level}]: ${message}`);
     });
 
     // Load ChatGPT with additional options
     mainWindow.loadURL('https://chat.openai.com', {
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        userAgent: userAgent,
+        extraHeaders: 'pragma: no-cache\n'
     });
 
     // Show window when ready to prevent visual flash
@@ -56,17 +117,29 @@ function createWindow() {
 
         // Inject some additional browser-like properties
         mainWindow.webContents.executeJavaScript(`
-      // Make the app appear more like a regular browser
-      Object.defineProperty(navigator, 'webdriver', {
-        get: () => undefined,
-      });
-      
-      // Remove automation indicators
-      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
-    `).catch(() => {}); // Ignore errors if injection fails
+            // Make the app appear more like a regular browser
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+            });
+
+            // Remove automation indicators
+            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+
+            // Additional clouldflare bypassing
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5],
+            });
+
+            // Report success to console
+            console.log('Navigation succeeded to: ' + window.location.href);
+        `).catch(err => {
+            console.error('Error in JS injection:', err);
+        });
     });
+
+    // Rest of your code...
 
     // Handle loading errors
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -302,6 +375,9 @@ function createMenu() {
 
 // App event listeners
 app.whenReady().then(() => {
+    // Skip setting the dock icon entirely to avoid white window issues
+    // This is not critical for app functionality
+
     createWindow();
 
     app.on('activate', () => {

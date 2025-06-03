@@ -91,11 +91,8 @@ electron-builder --linux
 ### Adding an Icon
 
 1. Create an `assets` folder in your project directory
-2. Add your icon file as `icon.png` (or update the path in `main.js`)
-3. For better results, provide multiple sizes:
-    - `icon.icns` for macOS
-    - `icon.ico` for Windows
-    - `icon.png` for Linux
+2. Add your icon file as `icon.icns` in the `assets` folder
+3. This app uses `icon.icns` for all platforms (macOS, Windows, Linux)
 
 ### Modifying Window Size
 
